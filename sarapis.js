@@ -35,11 +35,12 @@ if (process.env.NODE_ENV != 'test') {
 		.describe('solr-port', 'The port of a Solr instance to connect to.')
 		.describe('solr-rootpath', 'The root path to the solr instance (Default: /solr).')
 		.describe('solr-core', 'The core name of a Solr instance to connect to.')
-		.describe('valid-subpaths', 'Comma seperated subpaths of the solr host that should be accessible over the proxy.')
+		.describe('valid-subpaths', 'Comma seperated subpaths that should be accessible over the proxy (Default: /select')
 		.describe('solr-allow', 'The methods to be allowed on the Solr instance(s).')
 		.describe('solr-deny', 'The parameters to be prohibited on the Solr instance(s).')
 		.describe('proxy-port', 'The port of the Solr proxy.')
 		.describe('sarapis-port', 'The port of this Sarapis server instance.')
+		.describe('query-parser', 'The query-parser that should be used (Default one of solr-server will be used).')
 		.version(function () {
 			return require('./package.json').version;
 		})
@@ -61,9 +62,6 @@ var PROXY_PORT = argv.proxyPort || 9090;
 var SARAPIS_PORT = argv.sarapisPort || 3000;
 
 //Process the valid paths
-var str = JSON.stringify(VALID_SUBPATHS);
-str = str.replace(/\"/g, "");
-
 var basicPath = SOLR_ROOTPATH;
 var validPaths = '';
 
@@ -72,8 +70,11 @@ if (SOLR_CORE != undefined) {
 }
 
 if (VALID_SUBPATHS == undefined) {
-	basicPath = basicPath + '/select';
+	//Only the default path is valid
+	validPaths = basicPath + '/select';
 }else{
+	var str = JSON.stringify(VALID_SUBPATHS);
+	str = str.replace(/\"/g, "");
 	str.split(',').forEach(function(validPath) {
 		//Split the subpaths and create a comma seperated list of full valid paths with rootpath/core/subpath
 		validPaths = basicPath + validPath + ',' + validPaths;
