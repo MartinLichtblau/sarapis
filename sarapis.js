@@ -33,11 +33,12 @@ if (process.env.NODE_ENV != 'test') {
 		.demand(['solr-host', 'solr-port'])
 		.describe('solr-host', 'The host address of a Solr instance to connect to.')
 		.describe('solr-port', 'The port of a Solr instance to connect to.')
-		.describe('solr-core', 'A core of a Solr instance to connect to.')
+		.describe('solr-rootpath', 'The root path to the solr instance (Default: /solr).')
+		.describe('solr-core', 'The core name of a Solr instance to connect to.')
+		.describe('valid-subpaths', 'Comma seperated subpaths of the solr host that should be accessible over the proxy.')
 		.describe('solr-allow', 'The methods to be allowed on the Solr instance(s).')
 		.describe('solr-deny', 'The parameters to be prohibited on the Solr instance(s).')
 		.describe('proxy-port', 'The port of the Solr proxy.')
-		.describe('proxy-path', 'The valid paths for the Solr proxy.')
 		.describe('sarapis-port', 'The port of this Sarapis server instance.')
 		.version(function () {
 			return require('./package.json').version;
@@ -50,25 +51,43 @@ cliLog.info(argv);
 //setup some sensible defaults for our variables
 var SOLR_HOST = argv.solrHost || 'localhost';
 var SOLR_PORT = argv.solrPort || 8983;
+var SOLR_ROOTPATH = argv.solrRootpath || ['/solr'];
 var SOLR_CORE = argv.solrCore;
+var VALID_SUBPATHS = argv.validSubpaths;
 var SOLR_VALID_METHODS = argv.solrAllow || ['GET', 'HEAD'];
 var SOLR_INVALID_PARAMS = argv.solrDeny || ['qt', 'stream'];
 var PROXY_HOST = argv.proxyHost || 'localhost';
 var PROXY_PORT = argv.proxyPort || 9090;
-var PROXY_PATH = argv.proxyPath || ['/solr/select'];
 var SARAPIS_PORT = argv.sarapisPort || 3000;
 
+//Process the valid paths
+var str = JSON.stringify(VALID_SUBPATHS);
+str = str.replace(/\"/g, "");
+
+var basicPath = SOLR_ROOTPATH;
+var validPaths = '';
+
 if (SOLR_CORE != undefined) {
-	PROXY_PATH.push('/solr/' + SOLR_CORE + '/select')
+	basicPath = basicPath + '/' + SOLR_CORE;
 }
-cliLog.info();
+
+if (VALID_SUBPATHS == undefined) {
+	basicPath = basicPath + '/select';
+}else{
+	str.split(',').forEach(function(validPath) {
+		//Split the subpaths and create a comma seperated list of full valid paths with rootpath/core/subpath
+		validPaths = basicPath + validPath + ',' + validPaths;
+	});
+}
+
+cliLog.info("The valis paths are: " + validPaths);
 
 //setup proxy options
 var solrProxy = require('solr-proxy');
 var solrProxyOptions = {
 	listenPort: PROXY_PORT,
 	validHttpMethods: SOLR_VALID_METHODS,
-	validPaths: PROXY_PATH,
+	validPaths: validPaths,
 	invalidParams: SOLR_INVALID_PARAMS,
 	backend: {
 		host: SOLR_HOST,
@@ -78,7 +97,7 @@ var solrProxyOptions = {
 
 //setup our solr client against the proxy
 var solrClient = require('solr-client');
-var proxyClient = solrClient.createClient(PROXY_HOST, PROXY_PORT, SOLR_CORE);
+var proxyClient = solrClient.createClient(PROXY_HOST, PROXY_PORT, SOLR_CORE, SOLR_ROOTPATH);
 
 //setup basic options for our rest server
 var restServer = new hapi.Server();
