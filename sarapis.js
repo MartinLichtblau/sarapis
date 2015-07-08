@@ -33,7 +33,7 @@ if (process.env.NODE_ENV != 'test') {
 		.demand(['solr-host', 'solr-port'])
 		.describe('solr-host', 'The host address of a Solr instance to connect to.')
 		.describe('solr-port', 'The port of a Solr instance to connect to.')
-		.describe('solr-rootpath', 'The root path to the solr instance (Default: /solr).')
+		.describe('solr-basepath', 'The basepath to the solr instance (Default: /solr).')
 		.describe('solr-core', 'The core name of a Solr instance to connect to.')
 		.describe('valid-subpaths', 'Comma seperated subpaths that should be accessible over the proxy (Default: /select')
 		.describe('solr-allow', 'The methods to be allowed on the Solr instance(s).')
@@ -52,7 +52,7 @@ cliLog.info(argv);
 //setup some sensible defaults for our variables
 var SOLR_HOST = argv.solrHost || 'localhost';
 var SOLR_PORT = argv.solrPort || 8983;
-var SOLR_ROOTPATH = argv.solrRootpath || ['/solr'];
+var SOLR_BASEPATH = argv.solrBasepath || ['/solr'];
 var SOLR_CORE = argv.solrCore;
 var VALID_SUBPATHS = argv.validSubpaths;
 var SOLR_VALID_METHODS = argv.solrAllow || ['GET', 'HEAD'];
@@ -62,13 +62,11 @@ var PROXY_PORT = argv.proxyPort || 9090;
 var SARAPIS_PORT = argv.sarapisPort || 3000;
 
 //Process the valid paths
-var basicPath = SOLR_ROOTPATH;
+var basicPath = SOLR_BASEPATH;
 var validPaths = '';
-
 if (SOLR_CORE != undefined) {
 	basicPath = basicPath + '/' + SOLR_CORE;
 }
-
 if (VALID_SUBPATHS == undefined) {
 	//Only the default path is valid
 	validPaths = basicPath + '/select';
@@ -76,11 +74,10 @@ if (VALID_SUBPATHS == undefined) {
 	var str = JSON.stringify(VALID_SUBPATHS);
 	str = str.replace(/\"/g, "");
 	str.split(',').forEach(function(validPath) {
-		//Split the subpaths and create a comma seperated list of full valid paths with rootpath/core/subpath
+		//Split the subpaths and create a comma seperated list of full valid paths with basepath/core/subpath
 		validPaths = basicPath + validPath + ',' + validPaths;
 	});
 }
-
 cliLog.info("The valis paths are: " + validPaths);
 
 //setup proxy options
@@ -98,7 +95,7 @@ var solrProxyOptions = {
 
 //setup our solr client against the proxy
 var solrClient = require('solr-client');
-var proxyClient = solrClient.createClient(PROXY_HOST, PROXY_PORT, SOLR_CORE, SOLR_ROOTPATH);
+var proxyClient = solrClient.createClient(PROXY_HOST, PROXY_PORT, SOLR_CORE, SOLR_BASEPATH);
 
 //setup basic options for our rest server
 var restServer = new hapi.Server();
